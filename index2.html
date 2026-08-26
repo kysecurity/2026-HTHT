@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>White-Hat Escape · 화이트해커 침투 콘솔</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --ink:        #080b14;
+      --ink-2:      #0b1020;
+      --surface:    #111a33;
+      --surface-2:  #0d1428;
+      --panel:      rgba(19, 27, 51, 0.72);
+
+      --line:        rgba(130, 150, 190, 0.14);
+      --line-strong: rgba(130, 150, 190, 0.30);
+
+      --aqua:        #35e0c9;
+      --aqua-dim:    #1f9c8c;
+      --aqua-soft:   rgba(53, 224, 201, 0.12);
+      --aqua-line:   rgba(53, 224, 201, 0.42);
+      --glow:        0 0 0 1px var(--aqua-line), 0 0 26px rgba(53, 224, 201, 0.28);
+
+      --amber:       #ffb84d;
+      --amber-soft:  rgba(255, 184, 77, 0.10);
+
+      --danger:      #ff5a78;
+      --danger-soft: rgba(255, 90, 120, 0.10);
+
+      --text:        #dbe3f7;
+      --text-dim:    #8b98ba;
+      --text-faint:  #56618a;
+
+      --font-display: 'Space Grotesk', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+      --font-body:    'Pretendard', system-ui, sans-serif;
+
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--ink);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 28px 20px;
+      position: relative;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Ambient background: soft aqua glow + fine schematic grid */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(900px 520px at 18% -8%, rgba(53, 224, 201, 0.10), transparent 60%),
+        radial-gradient(820px 620px at 108% 118%, rgba(80, 110, 255, 0.10), transparent 62%),
+        var(--ink);
+      z-index: 0;
+    }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 46px 46px;
+      mask-image: radial-gradient(circle at 50% 40%, #000 0%, transparent 78%);
+      opacity: 0.4;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Console shell ─────────────────────────────── */
+    .console {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 940px;
+      background: linear-gradient(180deg, rgba(21, 30, 56, 0.86), rgba(11, 16, 32, 0.92));
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      box-shadow:
+        0 40px 90px -30px rgba(0, 0, 0, 0.8),
+        0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+      backdrop-filter: blur(14px);
+      overflow: hidden;
+    }
+
+    .console__bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 20px;
+      background: rgba(8, 12, 22, 0.6);
+      border-bottom: 1px solid var(--line);
+    }
+    .leds { display: flex; gap: 7px; }
+    .led { width: 11px; height: 11px; border-radius: 50%; opacity: 0.85; }
+    .led--r { background: #ff6b6b; }
+    .led--y { background: #ffc14d; }
+    .led--g { background: #3ddc84; }
+
+    .bar__title {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+    }
+    .bar__title b { color: var(--text); font-weight: 700; }
+
+    .bar__conn {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      color: var(--aqua);
+      text-transform: uppercase;
+    }
+    .pulse {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--aqua);
+      box-shadow: 0 0 0 0 var(--aqua-line);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(53, 224, 201, 0.5); }
+      70%  { box-shadow: 0 0 0 8px rgba(53, 224, 201, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(53, 224, 201, 0); }
+    }
+
+    .console__main {
+      display: grid;
+      grid-template-columns: 232px 1fr;
+    }
+
+    /* ── Left rail: intrusion path spine ───────────── */
+    .rail {
+      padding: 26px 22px;
+      border-right: 1px solid var(--line);
+      background: rgba(8, 12, 22, 0.34);
+    }
+    .rail__label {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 20px;
+    }
+    .steps { list-style: none; position: relative; }
+    .step {
+      position: relative;
+      display: flex;
+      gap: 14px;
+      padding-bottom: 26px;
+    }
+    .step:last-child { padding-bottom: 0; }
+    /* connector line between nodes */
+    .step:not(:last-child)::before {
+      content: "";
+      position: absolute;
+      left: 12px;
+      top: 26px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--line-strong);
+      transition: background 0.4s ease;
+    }
+    .step.is-done:not(:last-child)::before { background: var(--aqua-dim); }
+
+    .step__node {
+      position: relative;
+      z-index: 1;
+      flex: none;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      border: 2px solid var(--line-strong);
+      background: var(--surface-2);
+      display: grid;
+      place-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-faint);
+      transition: all 0.35s ease;
+    }
+    .step__meta { padding-top: 2px; }
+    .step__name {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      line-height: 1.2;
+      transition: color 0.35s ease;
+    }
+    .step__tag {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      letter-spacing: 0.05em;
+      color: var(--text-faint);
+      margin-top: 3px;
+    }
+
+    .step.is-active .step__node {
+      border-color: var(--aqua);
+      color: var(--aqua);
+      box-shadow: 0 0 0 4px var(--aqua-soft), 0 0 18px rgba(53, 224, 201, 0.35);
+    }
+    .step.is-active .step__name { color: var(--text); }
+    .step.is-active .step__tag  { color: var(--aqua); }
+
+    .step.is-done .step__node {
+      border-color: var(--aqua-dim);
+      background: var(--aqua-dim);
+      color: var(--ink);
+    }
+    .step.is-done .step__name { color: var(--text-dim); }
+
+    /* ── Right stage ───────────────────────────────── */
+    .stage {
+      padding: 34px 40px 38px;
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .screen { display: none; flex-direction: column; gap: 20px; }
+    .screen.active { display: flex; }
+    @media (prefers-reduced-motion: no-preference) {
+      .screen.active { animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(14px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+    }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--aqua);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .eyebrow::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--aqua-line), transparent);
+    }
+
+    .title {
+      font-family: var(--font-display);
+      font-size: 1.62rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.18;
+      color: var(--text);
+    }
+    .lede {
+      font-size: 0.98rem;
+      line-height: 1.7;
+      color: var(--text-dim);
+      max-width: 56ch;
+    }
+
+    /* Pledge terminal */
+    .boot {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.85;
+      color: var(--text-faint);
+    }
+    .boot .ok { color: var(--aqua); }
+    .prompt {
+      font-family: var(--font-mono);
+      font-size: 0.98rem;
+      line-height: 1.7;
+      color: var(--text);
+      padding: 16px 18px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--aqua);
+      border-radius: 10px;
+    }
+    .prompt::before { content: "› "; color: var(--aqua); }
+    .caret {
+      display: inline-block;
+      width: 9px; height: 1.05em;
+      background: var(--aqua);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 1.05s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Hint card */
+    .hint {
+      background: var(--amber-soft);
+      border: 1px solid rgba(255, 184, 77, 0.24);
+      border-left: 3px solid var(--amber);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      color: #ffd894;
+    }
+    .hint b { color: #ffe6b8; }
+    .hint__tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 8px;
+    }
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+      background: rgba(8, 12, 22, 0.7);
+      border: 1px solid var(--line-strong);
+      color: var(--aqua);
+      padding: 2px 7px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+
+    /* Form */
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    .field label {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+    .form { display: flex; flex-direction: column; gap: 16px; }
+    input[type="text"], input[type="password"] {
+      background: var(--surface-2);
+      border: 1px solid var(--line-strong);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      padding: 13px 15px;
+      border-radius: 10px;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    input::placeholder { color: var(--text-faint); }
+    input:focus {
+      border-color: var(--aqua);
+      box-shadow: 0 0 0 3px var(--aqua-soft);
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-display);
+      font-size: 0.94rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: var(--ink);
+      background: var(--aqua);
+      border: 1px solid var(--aqua);
+      padding: 13px 26px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+      align-self: flex-start;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: var(--glow); }
+    .btn:active { transform: translateY(0); }
+    .btn:focus-visible { outline: 2px solid var(--aqua); outline-offset: 3px; }
+
+    .btn--ghost {
+      background: transparent;
+      color: var(--aqua);
+      border-color: var(--aqua-line);
+    }
+    .btn--ghost:hover { background: var(--aqua-soft); box-shadow: none; }
+
+    .btn--danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #12060a;
+    }
+    .btn--danger:hover { box-shadow: 0 0 26px rgba(255, 90, 120, 0.35); }
+
+    /* Locked panel (level 3) */
+    .locked {
+      border: 1px dashed var(--line-strong);
+      border-radius: 12px;
+      padding: 30px 20px;
+      text-align: center;
+      background: repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(255,255,255,0.015) 12px, rgba(255,255,255,0.015) 24px);
+    }
+    .locked__label {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      color: var(--text-faint);
+    }
+    .locked__label::before { content: "🔒 "; }
+
+    /* Status line */
+    .status {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      padding: 12px 15px;
+      border-radius: 10px;
+      margin-top: 4px;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .status { animation: slidein 0.3s ease; }
+      @keyframes slidein { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+    }
+    .status.success {
+      color: var(--aqua);
+      background: var(--aqua-soft);
+      border: 1px solid var(--aqua-line);
+    }
+    .status.error {
+      color: var(--danger);
+      background: var(--danger-soft);
+      border: 1px solid rgba(255, 90, 120, 0.4);
+    }
+
+    /* Finish summary */
+    .win-hero {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--aqua);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .summary { display: grid; gap: 12px; }
+    .card {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex;
+      gap: 14px;
+    }
+    .card__idx {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--aqua);
+      flex: none;
+      padding-top: 1px;
+    }
+    .card h3 {
+      font-family: var(--font-display);
+      font-size: 0.98rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+    .card p { font-size: 0.86rem; line-height: 1.65; color: var(--text-dim); }
+
+    .actions { margin-top: 8px; }
+
+    /* Screen transition flash — subtle, not inverted */
+    .flash { animation: none; }
+    @media (prefers-reduced-motion: no-preference) {
+      .flash { animation: flash 0.32s ease; }
+      @keyframes flash {
+        0%   { box-shadow: 0 40px 90px -30px rgba(0,0,0,0.8), 0 0 0 1px var(--aqua-line), 0 0 60px rgba(53,224,201,0.35); }
+        100% { box-shadow: 0 40px 90px -30px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.02) inset; }
+      }
+    }
+
+    /* ── Responsive ────────────────────────────────── */
+    @media (max-width: 760px) {
+      body { padding: 16px 12px; }
+      .console__main { grid-template-columns: 1fr; }
+      .rail {
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+        padding: 18px 20px;
+      }
+      .rail__label { margin-bottom: 14px; }
+      .steps { display: flex; gap: 0; }
+      .step { flex-direction: column; align-items: center; gap: 7px; padding-bottom: 0; flex: 1; text-align: center; }
+      .step:not(:last-child)::before {
+        left: auto; top: 12px; bottom: auto;
+        right: -50%; width: calc(100% - 26px); height: 2px;
+      }
+      .step__meta { display: none; }
+      .stage { padding: 26px 22px 30px; min-height: 0; }
+      .title { font-size: 1.34rem; }
+      .btn { align-self: stretch; text-align: center; }
+      .form .btn { align-self: stretch; }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="console" id="terminal">
+    <header class="console__bar">
+      <div class="leds">
+        <span class="led led--r"></span>
+        <span class="led led--y"></span>
+        <span class="led led--g"></span>
+      </div>
+      <div class="bar__title"><b>white-hat</b> · 침투 콘솔 <span style="color:var(--text-faint)">v1.0</span></div>
+      <div class="bar__conn"><span class="pulse"></span> SANDBOX ONLINE</div>
+    </header>
+
+    <div class="console__main">
+      <!-- Left rail: intrusion path -->
+      <nav class="rail" aria-label="침투 진행 경로">
+        <div class="rail__label">Intrusion Path</div>
+        <ol class="steps" id="steps">
+          <li class="step" data-step="0"><span class="step__node">00</span><div class="step__meta"><div class="step__name">접속</div><div class="step__tag">ACCESS</div></div></li>
+          <li class="step" data-step="1"><span class="step__node">01</span><div class="step__meta"><div class="step__name">인증 우회</div><div class="step__tag">SQLi</div></div></li>
+          <li class="step" data-step="2"><span class="step__node">02</span><div class="step__meta"><div class="step__name">스크립트 삽입</div><div class="step__tag">XSS</div></div></li>
+          <li class="step" data-step="3"><span class="step__node">03</span><div class="step__meta"><div class="step__name">은닉 요소</div><div class="step__tag">DOM</div></div></li>
+          <li class="step" data-step="4"><span class="step__node">✓</span><div class="step__meta"><div class="step__name">장악 완료</div><div class="step__tag">ROOT</div></div></li>
+        </ol>
+      </nav>
+
+      <!-- Right stage -->
+      <section class="stage">
+
+        <!-- SCREEN 0: Ethics Pledge -->
+        <div id="screen-0" class="screen active">
+          <div class="eyebrow">System · Ethics Pledge</div>
+          <h1 class="title">윤리 서약 후 시스템에 접속합니다</h1>
+          <div class="boot">
+            <div><span class="ok">[ ok ]</span> 격리 샌드박스 초기화 완료</div>
+            <div><span class="ok">[ ok ]</span> 취약 웹 서버 3종 로드됨</div>
+            <div><span class="ok">[ ok ]</span> 감사 로그 기록 시작</div>
+          </div>
+          <p class="prompt" id="typewriter-pledge"></p>
+          <div class="hint">
+            <div class="hint__tag">⚠ notice</div>
+            본 시뮬레이션은 정당하게 <b>허가된 환경</b>에서만 수행되어야 합니다. 여기서 익힌 기술은 방어를 위해 씁니다.
+          </div>
+          <button class="btn" onclick="startEscape()">동의하고 접속</button>
+        </div>
+
+        <!-- SCREEN 1: SQL Injection -->
+        <div id="screen-1" class="screen">
+          <div class="eyebrow">Level 01 · Auth Bypass</div>
+          <h1 class="title">로그인 인증을 우회하세요</h1>
+          <p class="lede">가상 보안 서버의 관리자 로그인 페이지입니다. 인증 로직을 우회해 관리자 권한을 획득하세요.</p>
+          <div class="hint">
+            <div class="hint__tag">💡 hint</div>
+            내부 SQL 쿼리가 무조건 <b>참(True)</b>이 되도록 조건을 주입하세요.<br>
+            예: <code>' OR '1'='1</code> 또는 <code>" OR "1"="1</code>
+          </div>
+          <form onsubmit="checkLevel1(event)" class="form">
+            <div class="field">
+              <label for="sqli-id">Username · 아이디</label>
+              <input type="text" id="sqli-id" placeholder="admin" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="sqli-pw">Password · 비밀번호</label>
+              <input type="password" id="sqli-pw" placeholder="••••••••" autocomplete="off">
+            </div>
+            <button type="submit" class="btn">로그인 시도</button>
+          </form>
+          <div id="status-1" class="status"></div>
+        </div>
+
+        <!-- SCREEN 2: Reflected XSS -->
+        <div id="screen-2" class="screen">
+          <div class="eyebrow">Level 02 · Script Injection</div>
+          <h1 class="title">검색창에 스크립트를 실행시키세요</h1>
+          <p class="lede">게시판 검색 기능의 입력값 검증 취약점을 이용해 악성 자바스크립트를 브라우저에서 실행시키세요.</p>
+          <div class="hint">
+            <div class="hint__tag">💡 hint</div>
+            알림창(alert)을 띄우는 <b>스크립트 태그</b>를 검색어에 그대로 넣으세요.<br>
+            예: <code>&lt;script&gt;alert(1)&lt;/script&gt;</code>
+          </div>
+          <form onsubmit="checkLevel2(event)" class="form">
+            <div class="field">
+              <label for="xss-input">Search Query · 검색어</label>
+              <input type="text" id="xss-input" placeholder="검색어를 입력하세요…" autocomplete="off">
+            </div>
+            <button type="submit" class="btn">검색 실행</button>
+          </form>
+          <div id="status-2" class="status"></div>
+        </div>
+
+        <!-- SCREEN 3: Client-Side Manipulation -->
+        <div id="screen-3" class="screen">
+          <div class="eyebrow">Level 03 · Hidden Element</div>
+          <h1 class="title">숨겨진 제어 버튼을 찾으세요</h1>
+          <p class="lede">관리자 제어판에 진입하려 했으나 화면에 아무 버튼도 보이지 않습니다. 클라이언트 코드 안에는 남아 있습니다.</p>
+          <div class="hint">
+            <div class="hint__tag">💡 hint</div>
+            관리자 전용 <code>시스템 장악</code> 버튼이 코드에 숨겨져 있습니다. <b>개발자 도구(F12)</b>를 열어 소스를 검사하고 <code>display: none</code> 을 제거한 뒤 버튼을 누르세요.
+          </div>
+          <div class="locked">
+            <div class="locked__label">영역: 숨겨진 오브젝트</div>
+            <!-- Hidden target: students unhide this via F12. Do not change this mechanic. -->
+            <button id="secretBtn" style="display: none;" class="btn btn--danger" onclick="levelClear()">시스템 장악</button>
+          </div>
+          <div id="status-3" class="status"></div>
+        </div>
+
+        <!-- SCREEN 4: Finish -->
+        <div id="screen-4" class="screen">
+          <div class="eyebrow">Mission · Accomplished</div>
+          <h1 class="title">전 구간 침투 성공</h1>
+          <p class="win-hero">🎉 축하합니다. 화이트해커의 자질을 갖췄습니다.</p>
+          <div class="summary">
+            <div class="card">
+              <div class="card__idx">01</div>
+              <div>
+                <h3>SQL Injection · SQL 삽입</h3>
+                <p>사용자 입력을 검증 없이 쿼리에 이어 붙일 때 발생합니다. Prepared Statement(파라미터화된 쿼리)로 값과 코드를 분리해 예방합니다.</p>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card__idx">02</div>
+              <div>
+                <h3>Reflected XSS · 크로스 사이트 스크립팅</h3>
+                <p>검증되지 않은 입력이 브라우저에서 HTML·JS로 실행되는 취약점입니다. 출력 시 HTML 엔티티 치환(Escaping)이 필수입니다.</p>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card__idx">03</div>
+              <div>
+                <h3>Client-Side Manipulation · 클라이언트 조작</h3>
+                <p>클라이언트(HTML·JS·CSS)의 은닉이나 검증은 사용자가 손쉽게 바꿀 수 있습니다. 중요한 로직은 반드시 서버에서 검증합니다.</p>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn--ghost" onclick="resetGame()">처음부터 다시</button>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <script>
+    // Typewriter effect
+    function typeWriter(text, elementId, speed = 30, callback = null) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = "";
+      const caret = document.createElement("span");
+      caret.className = "caret";
+      element.appendChild(caret);
+      let i = 0;
+      function type() {
+        if (i < text.length) {
+          caret.insertAdjacentText("beforebegin", text.charAt(i));
+          i++;
+          setTimeout(type, speed);
+        } else if (callback) {
+          callback();
+        }
+      }
+      type();
+    }
+
+    const pledgeText = "본 시스템은 교육용으로 제작되었습니다. 여기서 배운 기술을 허가받지 않은 시스템에 사용하지 않을 것을 맹세합니까?";
+    window.onload = function () {
+      typeWriter(pledgeText, "typewriter-pledge", 35);
+      updateProgress(0);
+    };
+
+    // Update left-rail intrusion path
+    function updateProgress(index) {
+      document.querySelectorAll(".step").forEach(step => {
+        const s = Number(step.dataset.step);
+        step.classList.toggle("is-done", s < index);
+        step.classList.toggle("is-active", s === index);
+      });
+    }
+
+    // Subtle flash on transition (reduced-motion respected via CSS)
+    function triggerGlitch() {
+      const terminal = document.getElementById("terminal");
+      terminal.classList.remove("flash");
+      void terminal.offsetWidth;
+      terminal.classList.add("flash");
+    }
+
+    function goToScreen(screenIndex) {
+      triggerGlitch();
+      document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+      document.getElementById(`screen-${screenIndex}`).classList.add("active");
+      updateProgress(screenIndex);
+    }
+
+    function startEscape() { goToScreen(1); }
+
+    // Level 1: SQL Injection
+    function checkLevel1(e) {
+      e.preventDefault();
+      const idVal = document.getElementById("sqli-id").value.trim();
+      const pwVal = document.getElementById("sqli-pw").value.trim();
+      const status = document.getElementById("status-1");
+      const sqliPattern = /' OR '1'='1|" OR "1"="1/i;
+
+      if (sqliPattern.test(idVal) || sqliPattern.test(pwVal)) {
+        status.style.display = "flex";
+        status.className = "status success";
+        status.innerText = "✓ SQL Injection 성공! 관리자 권한을 획득했습니다.";
+        setTimeout(() => goToScreen(2), 1400);
+      } else {
+        status.style.display = "flex";
+        status.className = "status error";
+        status.innerText = "✗ 로그인 실패. 조건문이 항상 참(True)이 되도록 주입해 보세요.";
+      }
+    }
+
+    // Level 2: Reflected XSS
+    function checkLevel2(e) {
+      e.preventDefault();
+      const inputVal = document.getElementById("xss-input").value.trim();
+      const status = document.getElementById("status-2");
+      const xssPattern = new RegExp('<script\\b[^>]*>[\\s\\S]*?alert\\s*\\(.*?\\);?[\\s\\S]*?<\\/script>', 'i');
+
+      if (xssPattern.test(inputVal)) {
+        alert("XSS Payload Triggered!");
+        status.style.display = "flex";
+        status.className = "status success";
+        status.innerText = "✓ XSS 성공! 세션 쿠키를 탈취했습니다.";
+        setTimeout(() => goToScreen(3), 1400);
+      } else {
+        status.style.display = "flex";
+        status.className = "status error";
+        status.innerText = "✗ 실패. <script> 태그 안의 alert() 가 실행되도록 입력하세요.";
+      }
+    }
+
+    // Level 3: Secret button
+    function levelClear() {
+      const status = document.getElementById("status-3");
+      status.style.display = "flex";
+      status.className = "status success";
+      status.innerText = "✓ 클라이언트 조작 성공! 제어권을 장악했습니다.";
+      setTimeout(() => goToScreen(4), 1400);
+    }
+
+    // Reset
+    function resetGame() {
+      document.getElementById("sqli-id").value = "";
+      document.getElementById("sqli-pw").value = "";
+      document.getElementById("xss-input").value = "";
+      document.getElementById("secretBtn").style.display = "none";
+      document.querySelectorAll(".status").forEach(el => el.style.display = "none");
+      goToScreen(0);
+      typeWriter(pledgeText, "typewriter-pledge", 35);
+    }
+  </script>
+</body>
+</html>
