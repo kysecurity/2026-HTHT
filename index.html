@@ -473,8 +473,8 @@
       const inputVal = document.getElementById("xss-input").value.trim();
       const status = document.getElementById("status-2");
 
-      // Check for <script>alert(...)</script> pattern
-      const xssPattern = /<script\b[^>]*>[\s\S]*?alert\s*\(.*?\);?[\s\S]*?<\/script>/i;
+      // Check for XSS alert pattern
+      const xssPattern = new RegExp('<script\\b[^>]*>[\\s\\S]*?alert\\s*\\(.*?\\);?[\\s\\S]*?<\\/script>', 'i');
 
       if (xssPattern.test(inputVal)) {
         // Trigger browser alert as requested
@@ -489,7 +489,7 @@
       } else {
         status.style.display = "flex";
         status.className = "status-msg error";
-        status.innerText = "✗ 공격 실패. 브라우저가 <script> 태그 내의 alert() 함수를 실행하도록 입력하세요.";
+        status.innerText = "✗ 공격 실패. 브라우저가 \u003cscript\u003e 태그 내의 alert() 함수를 실행하도록 입력하세요.";
       }
     }
 
